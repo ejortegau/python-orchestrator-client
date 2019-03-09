@@ -100,5 +100,3 @@ Out[4]:
   'VersionComment': 'MySQL Community Server - GPL'},
  'Message': 'Instance deceive:20518 relocated below deceive:20516'}
 ```
-
-## My Orchestrator version 
