@@ -57,7 +57,7 @@ class OrchestratorClient:
             raise OrchestratorClientException('ERR_NO_CFG', f"Endpoints definition file {endpoints_file} not found, "
                                                             f"cannot instantiate an orchestrator client")
 
-    def run(self, cmd: str, *args: list) -> iter:
+    def run(self, cmd: str, *args: str) -> iter:
         """
         Send command cmd with arguments args to Orchestrator server. Returns a list or dictionary matching the JSON
         representation of the response body returned by the Orchestrator server.
@@ -75,11 +75,22 @@ class OrchestratorClient:
         # Check whether the number of arguments received matches the number of arguments expected by the command
         n_args = [len(a) for a in self.commands[cmd]]
         args = list(args)
+        args = [str(a) for a in args]  # Stringify all the things
         if not len(args) in n_args:
+            # Build text representation of list of arguments required by given command
+            usages = []
+            for usage in self.commands[cmd]:
+                usage = [ f"'{a}'" for a in usage]
+                sample = ", ".join(usage).strip().strip(",")
+                usages.append(f"[{sample}l]")
+            usages = " or ".join(usages).strip(" or ")
+            logging.error("Command '%s' needs the following arguments: %s", cmd, usages)
             raise OrchestratorClientException('ERR_BAD_CMD_ARGS', f"Specified number of arguments for "
-            f"command {cmd} ({len(args)}) does not match expected number of arguments for it ({n_args})")
-        args.insert(0, cmd)
-        path = '/'.join(args)
+                                                                  f"command {cmd} ({len(args)}) does not match expected"
+                                                                  f" number of arguments for it ({n_args})")
+        args.insert(0, cmd)  # Insert the command as the first argument for building request path
+
+        path = '/'.join(args)  # build request path
 
         url = f"{self.base_url}{path}"
         logging.info("Calling endpoint %s", url)
