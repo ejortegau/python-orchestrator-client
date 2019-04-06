@@ -82,7 +82,7 @@ class OrchestratorClient:
             for usage in self.commands[cmd]:
                 usage = [f"'{a}'" for a in usage]
                 sample = ", ".join(usage).strip().strip(",")
-                usages.append(f"[{sample}l]")
+                usages.append(f"[{sample}]")
             usages = " or ".join(usages).strip(" or ")
             logging.error("Command '%s' needs the following arguments: %s", cmd, usages)
             raise OrchestratorClientException('ERR_BAD_CMD_ARGS', f"Specified number of arguments for "
@@ -114,9 +114,9 @@ class OrchestratorClient:
 
     def __getattr__(self, item):
         def _method_mapper(*args, **kwargs):
-            return self.run(item, *args, *kwargs)
+            return self.run(item.replace("_", "-"), *args, *kwargs)
 
-        if item in self.commands.keys():
+        if item.replace("_", "-") in self.commands.keys():
             return _method_mapper
         else:
             raise AttributeError(f"No such attribute or method: {item}")

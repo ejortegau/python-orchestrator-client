@@ -13,16 +13,13 @@ generate your own to ensure its contents match what your Orchestrator version su
 ```python
 In [1]: from pyorchestratorclient import OrchestratorClient
 
-In [2]: o = OrchestratorClient('/path/to/orchestrator/endpoints.txt', 'http://localhost:3000')
+In [2]: o = OrchestratorClient('conf/orchestrator_endpoints.txt', 'http://localhost:3000')  # Adjust config  path and Orchestrator URL
 
-In [3]: o.clusters()  # Directly call a method known to the Orchestrator HTTP API
+In [3]: o.clusters()
 Out[3]: ['deceive:20516']
 
-In [4]: o.run("clusters")  # Or call it by specifying its name to the run() method
-Out[4]: ['deceive:20516']
-
-In [5]: o.relocate('deceive', '20518', 'deceive', '20516')  # Direct call using method arguments 
-Out[5]: 
+In [4]: o.relocate('deceive', '20518', 'deceive', '20516')  # Call with methods
+Out[4]: 
 {'Code': 'OK',
  'Details': {'AllowTLS': False,
   'AncestryUUID': '00020516-1111-1111-1111-111111111111,00020518-3333-3333-3333-333333333333',
@@ -34,18 +31,9 @@ Out[5]:
   'VersionComment': 'MySQL Community Server - GPL'},
  'Message': 'Instance deceive:20518 relocated below deceive:20516'}
 
-In [6]: o.run('relocate', 'deceive', '20518', 'deceive', '20516')  # Indirect call via method name and arguments
-Out[6]: 
-{'Code': 'OK',
- 'Details': {'AllowTLS': False,
-  'AncestryUUID': '00020516-1111-1111-1111-111111111111,00020518-3333-3333-3333-333333333333',
-  'BinlogRowImage': 'FULL',
-  'Binlog_format': 'ROW',
-  'ClusterName': 'deceive:20516',
-  ...
-  'Version': '8.0.15',
-  'VersionComment': 'MySQL Community Server - GPL'},
- 'Message': 'Instance deceive:20518 relocated below deceive:20516'}
+In [5]: o.check_global_recoveries()  # Notice that dashes in HTTP API are translated to underscores for the python client
+Out[5]: {'Code': 'OK', 'Details': 'enabled', 'Message': 'Global recoveries enabled'}
 
-In [7]: 
+In [6]: 
+
 ```
