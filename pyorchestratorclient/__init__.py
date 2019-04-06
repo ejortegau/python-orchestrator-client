@@ -44,13 +44,13 @@ class OrchestratorClient:
         self.commands = defaultdict(list)
         try:
             with open(endpoints_file, "r") as f:
-                while(True):
-                    line=f.readline()
+                while True:
+                    line = f.readline()
                     if not line:
                         break
                     url_tokens = line.strip().split('/')
                     cmd = url_tokens[0]
-                    arguments = [a.strip(':') for a in url_tokens[1:] ]
+                    arguments = [a.strip(':') for a in url_tokens[1:]]
                     logging.debug("Registering command %s with arguments %s", cmd, arguments)
                     self.commands[cmd].append(arguments)
         except Exception as e:
@@ -80,7 +80,7 @@ class OrchestratorClient:
             # Build text representation of list of arguments required by given command
             usages = []
             for usage in self.commands[cmd]:
-                usage = [ f"'{a}'" for a in usage]
+                usage = [f"'{a}'" for a in usage]
                 sample = ", ".join(usage).strip().strip(",")
                 usages.append(f"[{sample}l]")
             usages = " or ".join(usages).strip(" or ")
@@ -115,6 +115,7 @@ class OrchestratorClient:
     def __getattr__(self, item):
         def _method_mapper(*args, **kwargs):
             return self.run(item, *args, *kwargs)
+
         if item in self.commands.keys():
             return _method_mapper
         else:
@@ -126,9 +127,8 @@ if __name__ == '__main__':
     try:
         o = OrchestratorClient('../conf/orchestrator_endpoints.txt', 'http://localhost:3000')
         logging.debug("Registered commands: %s", o.commands)
-        logging.info(o.clusters())
         logging.info(o.relocate('deceive', '20518', 'deceive', '20517'))
+        logging.info(o.clusters())
     except OrchestratorClientException as e:
         logging.error("%s", e)
         exit(1)
-
