@@ -13,7 +13,7 @@ generate your own to ensure its contents match what your Orchestrator version su
 ```python
 In [1]: from pyorchestratorclient import OrchestratorClient
 
-In [2]: o = OrchestratorClient('/home/ejortegau/git/python-orchestrator-client/conf/orchestrator_endpoints.txt', 'http://localhost:3000')
+In [2]: o = OrchestratorClient('/path/to/orchestrator/endpoints.txt', 'http://localhost:3000')
 
 In [3]: o.clusters()  # Directly call a method known to the Orchestrator HTTP API
 Out[3]: ['deceive:20516']
