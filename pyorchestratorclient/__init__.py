@@ -65,7 +65,7 @@ class OrchestratorClient:
         :param str cmd: a valid orchestrator command.
         :param list args: a list of arguments for the specified command.
         :return: a list or dictionary matching the decoded output of Orchestrator's response body
-        :rtype: list or dict
+        :rtype: iter
         :raises OrchestratorClientException: if the command is invalid, or if Orchestrator HTTP status code >= 300
         """
         # Check whether the specified command exists
@@ -93,7 +93,7 @@ class OrchestratorClient:
         path = '/'.join(args)  # build request path
 
         url = f"{self.base_url}{path}"
-        logging.info("Calling endpoint %s", url)
+        logging.debug("Calling endpoint %s", url)
         if self.username is not None or self.password is not None:
             result = requests.get(url, auth=(self.username, self.password))
         else:
@@ -102,9 +102,9 @@ class OrchestratorClient:
         if result.status_code < 300:
             return result.json()
         elif result.status_code < 400:
-            raise OrchestratorClientException('ERR_REDIRCT', f"Command {cmd} resulted in redirect"
-                                                             f" {[result.status_code]} {result.text}, please verify "
-                                                             f"base Orchestrator URL {self.base_url} is correct")
+            raise OrchestratorClientException('ERR_REDIRECT', f"Command {cmd} resulted in redirect"
+                                                              f" {[result.status_code]} {result.text}, please verify "
+                                                              f"base Orchestrator URL {self.base_url} is correct")
         elif result.status_code < 500:
             raise OrchestratorClientException('ERR_CLIENT', f"Command {cmd} resulted in client error "
                                                             f"{[result.status_code]} {result.text}")
@@ -112,13 +112,22 @@ class OrchestratorClient:
             raise OrchestratorClientException('ERR_SERVER', f"Command {cmd} resulted in server error "
                                                             f"{[result.status_code]} {result.text}")
 
+    def __getattr__(self, item):
+        def _method_mapper(*args, **kwargs):
+            return self.run(item, *args, *kwargs)
+        if item in self.commands.keys():
+            return _method_mapper
+        else:
+            raise AttributeError(f"No such attribute or method: {item}")
+
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     try:
         o = OrchestratorClient('../conf/orchestrator_endpoints.txt', 'http://localhost:3000')
         logging.debug("Registered commands: %s", o.commands)
-        logging.info(o.run('relocate', 'deceive', '20518', 'deceive', '20517'))
+        logging.info(o.clusters())
+        logging.info(o.relocate('deceive', '20518', 'deceive', '20517'))
     except OrchestratorClientException as e:
         logging.error("%s", e)
         exit(1)

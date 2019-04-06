@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="python-orchestrator-client",
-    version="0.1a2",
+    version="0.1a3",
     author="Eduardo Javier Ortega Urrego",
     author_email="ejortegau at mainstream google email service",
     description="A python client for Orchestrator",
