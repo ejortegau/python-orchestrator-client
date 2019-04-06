@@ -5,7 +5,7 @@ A simple Python Orchestrator (https://github.com/github/orchestrator) client.
 It ensures that the commands to be send to Orchestrator API are valid, and that the number of arguments matches what the
 API expects. This is achieved via dynamic configuration from a text file with the definition of all endpoints and their 
 arguments. The sample file included under `conf/orchestrator_endpoints.txt` has been generated from Orchestrator's 
-source code (src/github.com/github/orchestrator/go/http/api.go) using `scripts/orchestrator_api_conf.sh`. You can 
+source code (https://github.com/github/orchestrator/blob/master/go/http/api.go) using `scripts/orchestrator_api_conf.sh`. You can 
 generate your own to ensure its contents match what your Orchestrator version supports. 
 
 ## Usage:
