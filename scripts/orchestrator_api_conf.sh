@@ -11,5 +11,5 @@ test -z "$1" && err_die "Usage: $0 <path/to/your/gopath/src/github.com/github/or
 test -f "$1" || err_die "$1 not found"
 
 ENDPOINTS=$(grep 'this.registerAPIRequest(' "$1" | awk '{print $2}' | sed 's/[,"]//g')
-echo "ENDPOINTS=\"\"\"$ENDPOINTS\"\"\""
+echo "SUPPORTED_ENDPOINTS=\"\"\"$ENDPOINTS\"\"\""
 

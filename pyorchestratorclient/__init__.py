@@ -60,7 +60,7 @@ class OrchestratorClient:
         """
 
         base_url = url or os.getenv("ORCHESTRATOR_URL", "https://orchestrator")
-        self.base_url = f"{base_url}/api/"
+        self.base_url = f"{base_url.strip('/')}/api/"
         self.username = username or ""
         self.password = password or ""
         self.commands = defaultdict(list)
@@ -132,18 +132,18 @@ class OrchestratorClient:
                     f" {result.text}"
                 ) from error
         elif result.status_code < 400:
-            raise OrchestratorClientError(
+            raise OrchestratorRedirectionError(
                 f"Command {cmd} resulted in redirect {[result.status_code]}"
                 f" {result.text}, please verify that the base Orchestrator"
                 f"URL {self.base_url} is correct"
             )
         elif result.status_code < 500:
-            raise OrchestratorServerError(
+            raise OrchestratorClientError(
                 f"Command {cmd} resulted in client error "
                 f"{[result.status_code]} {result.text}"
             )
         else:
-            raise OrchestratorRedirectionError(
+            raise OrchestratorServerError(
                 f"Command {cmd} resulted in server error "
                 f"{[result.status_code]} {result.text}"
             )

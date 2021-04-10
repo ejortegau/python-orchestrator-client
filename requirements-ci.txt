@@ -2,3 +2,5 @@
 black
 pylint
 mypy
+build
+twine
