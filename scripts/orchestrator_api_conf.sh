@@ -6,9 +6,10 @@ function err_die {
 }
 
 
-test -z $1 && err_die "Usage: $0 <path/to/your/gopath/src/github.com/github/orchestrator/go/http/api.go>"
+test -z "$1" && err_die "Usage: $0 <path/to/your/gopath/src/github.com/github/orchestrator/go/http/api.go>"
 
-test -f $1 || err_die "$1 not found"
+test -f "$1" || err_die "$1 not found"
 
-grep 'this.registerAPIRequest(' $1 | awk '{print $2}' | sed 's/[,"]//g'
+ENDPOINTS=$(grep 'this.registerAPIRequest(' "$1" | awk '{print $2}' | sed 's/[,"]//g')
+echo "ENDPOINTS=\"\"\"$ENDPOINTS\"\"\""
 

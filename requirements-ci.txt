@@ -1,0 +1,4 @@
+﻿-r requirements.txt
+black
+pylint
+mypy

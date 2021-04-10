@@ -1,116 +1,152 @@
+"""A simple client for `Orchestrator
+<https://github.com/openark/orchestrator/>_` API."""
 import logging
+import os
+import sys
+from collections import defaultdict
+from typing import Optional, Any
+
 import requests
 
-from collections import defaultdict
+
+from pyorchestratorclient import endpoints
 
 
-class OrchestratorClientException(BaseException):
-    def __init__(self, code: str, message: str):
-        """
-        Orchestrator client exception constructor. Requires a computer-friendly code and a human friendly message.
-        :param str code: an error code for the exception
-        :param str message: a description of the exception
-        """
-        super(OrchestratorClientException, self).__init__()
-        self.code = code
-        self.message = message
+class OrchestratorBaseError(Exception):
+    """Base exception for errors calling the Orchestrator API"""
 
-    def __str__(self) -> str:
-        """
-        Returns a textual representation of the exception
-        :return: a human-readable string representation of the exception
-        :rtype str
-        """
-        return f"[{self.code}] {self.message}"
+
+class OrchestratorClientError(OrchestratorBaseError):
+    """Exception for errors calling the Orchestrator API that are related to
+    the client request"""
+
+
+class OrchestratorServerError(OrchestratorBaseError):
+    """Exception for errors calling the Orchestrator API that are related to
+    the server"""
+
+
+class OrchestratorRedirectionError(OrchestratorBaseError):
+    """Exception for errors calling the Orchestrator API that are related to
+    unexpected redirections being sent as response to the API request"""
 
 
 class OrchestratorClient:
-    """A Python client for Orchestrator API (https://github.com/github/orchestrator)"""
+    """A Python client for Orchestrator API (
+    https://github.com/openark/orchestrator)"""
 
-    def __init__(self, endpoints_file: str, url: str, username: str = None, password: str = None):
+    def __init__(
+        self,
+        url: Optional[str] = "",
+        username: Optional[str] = "",
+        password: Optional[str] = "",
+    ) -> None:
         """
-        Constructor for Orchestrator client. Requires the path to a text file specifying the supported Orchestrator
-        endpoints and its corresponding parameters, as well as the base URL of orchestrator (Eg. http://localhost:3000).
-        It can optionally take a username and password to perform HTTP basic authentication when issuing requests to
-        Orchestrator.
-        :param str endpoints_file: path to a file with configuration for all supported Orchestrator endpoints
-        :param str url: Base orchestrator URL
-        :param str username: Username to send as part of HTTP basic authentication (Optional)
-        :param str password: Password to send as part of HTTP basic authentication (Optional)
+        Constructor for Orchestrator client. Requires the path to a text file
+        specifying the supported Orchestrator endpoints and its corresponding
+        parameters, as well as the base URL of orchestrator
+        (Eg. https://orchestrator.example.com:3020).
+        It can optionally take a username and password to perform HTTP basic
+        authentication when issuing requests to Orchestrator.
+
+        :param url: Base orchestrator URL. If not provided, it will default
+        to https://orchestrator/
+        :param username: Username to send as part of HTTP basic
+        authentication. Can be left empty if your Orchestrator instance does not
+        require authentication.
+        :param password: Password to send as part of HTTP basic authentication.
+        Can be left empty if your Orchestrator instance does not require
+        authentication.
         """
-        self.base_url = f"{url}/api/"
-        self.username = username
-        self.password = password
+
+        base_url = url or os.getenv("ORCHESTRATOR_URL", "https://orchestrator")
+        self.base_url = f"{base_url}/api/"
+        self.username = username or ""
+        self.password = password or ""
         self.commands = defaultdict(list)
-        try:
-            with open(endpoints_file, "r") as f:
-                while True:
-                    line = f.readline()
-                    if not line:
-                        break
-                    url_tokens = line.strip().split('/')
-                    cmd = url_tokens[0]
-                    arguments = [a.strip(':') for a in url_tokens[1:]]
-                    logging.debug("Registering command %s with arguments %s", cmd, arguments)
-                    self.commands[cmd].append(arguments)
-        except Exception as e:
-            raise OrchestratorClientException('ERR_NO_CFG', f"Endpoints definition file {endpoints_file} not found, "
-                                                            f"cannot instantiate an orchestrator client")
 
-    def run(self, cmd: str, *args: str) -> iter:
+        for line in endpoints.SUPPORTED_ENDPOINTS.split("\n"):
+            if not line:
+                break
+            url_tokens = line.strip().split("/")
+            cmd = url_tokens[0]
+            arguments = [a.strip(":") for a in url_tokens[1:]]
+            logging.debug(
+                "Registering command %s with arguments %s", cmd, arguments
+            )
+            self.commands[cmd].append(arguments)
+
+    def run(self, cmd: str, *args: str) -> Any:
         """
-        Send command cmd with arguments args to Orchestrator server. Returns a list or dictionary matching the JSON
-        representation of the response body returned by the Orchestrator server.
+        Send command cmd with arguments args to Orchestrator server. Returns
+        a list or dictionary matching the JSON representation of the response
+        body returned by the Orchestrator server.
 
-        :param str cmd: a valid orchestrator command.
-        :param list args: a list of arguments for the specified command.
-        :return: a list or dictionary matching the decoded output of Orchestrator's response body
-        :rtype: iter
-        :raises OrchestratorClientException: if the command is invalid, or if Orchestrator HTTP status code >= 300
+        :param cmd: a valid orchestrator command.
+        :param args: a list of arguments for the specified command.
+        :return: a list or dictionary matching the decoded output of
+        Orchestrator's response body.
+        :raises OrchestratorClientError: if the command is invalid, or if
+        Orchestrator's HTTP response status code >= 300 and < 500
+        :raises OrchestratorServerError: if Orchestrator's response body cannot
+        be JSON decoded, or if the response's HTTP status code >= 500
+        :raises OrchestratorRedirectionError: if Orchestrator's response HTTP
+        status code >= 300 and <= 400.
         """
         # Check whether the specified command exists
         if cmd not in self.commands.keys():
-            raise OrchestratorClientException('ERR_NO_SUCH_CMD', f"Command {cmd} is not valid")
+            raise OrchestratorBaseError("Orchestrator {cmd} is not valid")
 
-        # Check whether the number of arguments received matches the number of arguments expected by the command
+        # Check whether the number of arguments received matches the number of
+        # arguments expected by the command
         n_args = [len(a) for a in self.commands[cmd]]
-        args = list(args)
-        args = [str(a) for a in args]  # Stringify all the things
-        if not len(args) in n_args:
-            # Build text representation of list of arguments required by given command
+        str_args = [str(a) for a in args]  # Stringify all the things
+        if not len(str_args) in n_args:
+            # Build text representation of list of arguments required by given
+            # command
             usages = []
             for usage in self.commands[cmd]:
                 usage = [f"'{a}'" for a in usage]
                 sample = ", ".join(usage).strip().strip(",")
                 usages.append(f"[{sample}]")
-            usages = " or ".join(usages).strip(" or ")
-            logging.error("Command '%s' needs the following arguments: %s", cmd, usages)
-            raise OrchestratorClientException('ERR_BAD_CMD_ARGS', f"Specified number of arguments for "
-                                                                  f"command {cmd} ({len(args)}) does not match expected"
-                                                                  f" number of arguments for it ({n_args})")
-        args.insert(0, cmd)  # Insert the command as the first argument for building request path
+            raise OrchestratorClientError(
+                f"Specified number of arguments for command {cmd} ({len(args)})"
+                f" does not match expected number of arguments for it "
+                f"({n_args}). Check that your call is correct."
+            )
+        # Insert the command as the first argument for building request path
+        str_args.insert(0, cmd)
 
-        path = '/'.join(args)  # build request path
+        path = "/".join(str_args)  # build request path
 
         url = f"{self.base_url}{path}"
         logging.debug("Calling endpoint %s", url)
-        if self.username is not None or self.password is not None:
-            result = requests.get(url, auth=(self.username, self.password))
-        else:
-            result = requests.get(url)
+        result = requests.get(url, auth=(self.username, self.password))
 
         if result.status_code < 300:
-            return result.json()
+            try:
+                return result.json()
+            except ValueError as error:
+                raise OrchestratorServerError(
+                    f"Response cannot be JSON decoded. Response is"
+                    f" {result.text}"
+                ) from error
         elif result.status_code < 400:
-            raise OrchestratorClientException('ERR_REDIRECT', f"Command {cmd} resulted in redirect"
-                                                              f" {[result.status_code]} {result.text}, please verify "
-                                                              f"base Orchestrator URL {self.base_url} is correct")
+            raise OrchestratorClientError(
+                f"Command {cmd} resulted in redirect {[result.status_code]}"
+                f" {result.text}, please verify that the base Orchestrator"
+                f"URL {self.base_url} is correct"
+            )
         elif result.status_code < 500:
-            raise OrchestratorClientException('ERR_CLIENT', f"Command {cmd} resulted in client error "
-                                                            f"{[result.status_code]} {result.text}")
+            raise OrchestratorServerError(
+                f"Command {cmd} resulted in client error "
+                f"{[result.status_code]} {result.text}"
+            )
         else:
-            raise OrchestratorClientException('ERR_SERVER', f"Command {cmd} resulted in server error "
-                                                            f"{[result.status_code]} {result.text}")
+            raise OrchestratorRedirectionError(
+                f"Command {cmd} resulted in server error "
+                f"{[result.status_code]} {result.text}"
+            )
 
     def __getattr__(self, item):
         def _method_mapper(*args, **kwargs):
@@ -118,17 +154,15 @@ class OrchestratorClient:
 
         if item.replace("_", "-") in self.commands.keys():
             return _method_mapper
-        else:
-            raise AttributeError(f"No such attribute or method: {item}")
+        raise AttributeError(f"No such attribute or method: {item}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     try:
-        o = OrchestratorClient('../conf/orchestrator_endpoints.txt', 'http://localhost:3000')
+        o = OrchestratorClient("http://localhost:3010")
         logging.debug("Registered commands: %s", o.commands)
-        logging.info(o.relocate('deceive', '20518', 'deceive', '20517'))
-        logging.info(o.clusters())
-    except OrchestratorClientException as e:
-        logging.error("%s", e)
-        exit(1)
+        logging.info(o.clusters("efsd"))
+    except OrchestratorBaseError as err:
+        logging.error("%s", err)
+        sys.exit(1)
