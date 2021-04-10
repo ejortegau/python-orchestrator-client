@@ -160,9 +160,9 @@ class OrchestratorClient:
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     try:
-        o = OrchestratorClient("http://localhost:3010")
+        o = OrchestratorClient("http://localhost:3010/")
         logging.debug("Registered commands: %s", o.commands)
-        logging.info(o.clusters("efsd"))
+        logging.info(o.clusters())
     except OrchestratorBaseError as err:
         logging.error("%s", err)
         sys.exit(1)
